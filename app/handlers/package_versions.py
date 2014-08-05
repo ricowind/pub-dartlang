@@ -17,6 +17,7 @@ from google.appengine.api import files
 from google.appengine.api import memcache
 from google.appengine.api import oauth
 from google.appengine.api import users
+from google.appengine.runtime import apiproxy_errors
 
 import handlers
 import models
@@ -53,7 +54,11 @@ class PackageVersions(object):
         if id.endswith('.tar.gz'):
             id = id[0:-len('.tar.gz')]
             version = handlers.request().package_version(id)
-            deferred.defer(self._count_download, version.key())
+            try:
+                deferred.defer(self._count_download, version.key())
+            except apiproxy_errors.DeadlineExceededError:
+                logging.info('Issues defering count update for %s ' % id)
+                pass
             raise cherrypy.HTTPRedirect(version.download_url)
         elif id.endswith('.yaml'):
             id = id[0:-len('.yaml')]
